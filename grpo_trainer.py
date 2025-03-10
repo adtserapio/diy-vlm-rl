@@ -3,6 +3,7 @@ from transformers import AutoProcessor, GenerationConfig, Trainer, AutoModelForI
 from PIL import Image
 from torch.utils.data import Sampler
 from accelerate.utils import set_seed
+import wandb
 
 class RepeatRandomSampler(Sampler):
     def __init__(
@@ -51,7 +52,7 @@ class MinimalGRPOTrainer(Trainer):
             pad_token_id=self.processing_class.tokenizer.pad_token_id
         )
         self.reward_func = reward_func  
-        # set_seed(args.seed, device_specific=True)
+        self.global_step = 1
 
         self.num_generations = args.num_generations  # = G in the GRPO paper
         
@@ -109,6 +110,15 @@ class MinimalGRPOTrainer(Trainer):
             device=self.model.device
         )
 
+        self.global_step += 1
+        # Log model-generated outputs every 10 steps
+        if self.global_step % 5 == 0:
+            print("="*20)
+            print("Step", self.global_step)
+            print("-"*20)
+            print(expanded_prompts[0])
+            print(completions[0])
+
         return inputs["input_ids"], inputs["attention_mask"], completion_ids, rewards
     
     def compute_loss(self, model, batch, return_outputs=False, num_items_in_batch=None):
@@ -126,6 +136,7 @@ class MinimalGRPOTrainer(Trainer):
             "reward_mean": rewards.mean().item(),
             "reward_std": rewards.std().item()
         })
+
 
         # Flatten tensors for model input
         flat_prompt_ids = prompt_ids.view(-1, prompt_ids.size(-1))
@@ -145,7 +156,8 @@ class MinimalGRPOTrainer(Trainer):
         mean_log_probs = target_log_probs.mean(dim=-1)
 
         # Compute advantages
-        advantages = rewards - rewards.mean(dim=1, keepdim=True)
+        # advantages = rewards - rewards.mean(dim=1, keepdim=True)
+        advantages = rewards
 
         # Compute loss
         loss = - (mean_log_probs * advantages).mean()
