@@ -3,10 +3,10 @@ torchrun --nproc_per_node="2" \
     --node_rank="0" \
     --master_addr="127.0.0.1" \
     --master_port="12346" \
-    main.py \
+    src/train_clevr_count.py \
     --deepspeed scripts/zero3.json \
     --model_name_or_path qwen/Qwen2.5-VL-3B-Instruct \
-    --dataset_name leonardPKU/clevr_cogen_a_train \
+    --dataset_name CLEVR \
     --max_prompt_length 8192 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
